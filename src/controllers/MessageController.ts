@@ -1,5 +1,5 @@
 import {Request, Response} from 'express';
-import Users, { FullRetrieveData } from '../models/Users';
+import Users from '../models/Users';
 import PatternResponses from '../helpers/PatternResponses'
 import MessagesModel from '../models/Messages';
 

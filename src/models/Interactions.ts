@@ -1,6 +1,5 @@
 import { DataTypes, Model, Optional, where } from "sequelize";
 import sequelize from "../config/mysql";
-import UsersModel from "./Users";
 import { Op } from "sequelize";
 
 export interface InteractionsAttributes {

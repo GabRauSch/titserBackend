@@ -3,14 +3,10 @@ import Interactions from '../models/Interactions'
 import Users, { FullRetrieveData } from '../models/Users';
 import PatternResponses from '../helpers/PatternResponses'
 import { UserUpdateData } from '../types/UserData';
-import imageMagic from 'imagemagick';
 import fs from 'fs';
 import path from 'path'
 import {v4 as uuidv4} from 'uuid';
-import gm from 'gm'
-import { createCanvas, loadImage } from 'canvas';
 import Jimp from 'jimp';
-import Joi, { valid } from 'joi'
 import { FullRetrieveSchema } from '../helpers/schemas';
 
 export const setLocationByLatitudeAndLongitude = async (req: Request, res: Response)=>{
