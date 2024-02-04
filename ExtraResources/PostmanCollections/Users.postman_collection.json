@@ -1,0 +1,224 @@
+{
+	"info": {
+		"_postman_id": "ee59c4a7-5da6-4aca-900f-29e480d710a2",
+		"name": "Users",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "19465844"
+	},
+	"item": [
+		{
+			"name": "/location",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"userId\": 2,\r\n    \"location\": {\r\n        \"latitude\": -27.6326667,\r\n        \"longitude\": -48.649391\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{titerAddress}}/location",
+					"host": [
+						"{{titerAddress}}"
+					],
+					"path": [
+						"location"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/userByLocation",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"location\": {\r\n        \"latitude\": 0,\r\n        \"longitude\": 0\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{titerAddress}}/userByLocation",
+					"host": [
+						"{{titerAddress}}"
+					],
+					"path": [
+						"userByLocation"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/users/:minAge/:maxAge",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{titerAddress}}/users/19/23",
+					"host": [
+						"{{titerAddress}}"
+					],
+					"path": [
+						"users",
+						"19",
+						"23"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/users/fullRetrieve",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"ageRange\": [\r\n        18,\r\n        27\r\n    ],\r\n    \"gender\": \"female\",\r\n    \"idsRetrieved\": [],\r\n    \"location\": {\r\n        \"latitude\": 0,\r\n        \"longitude\": 0\r\n    },\r\n    \"rangeInMeters\": 300000,\r\n    \"userId\": 10\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{titerAddress}}/users/fullRetrieve",
+					"host": [
+						"{{titerAddress}}"
+					],
+					"path": [
+						"users",
+						"fullRetrieve"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/user",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"userId\": 1,\r\n    \"customName\": \"Gabrielle da Lam\",\r\n    \"description\": \"Eu Sou Homo\",\r\n    \"photo\": \"jpg.jpg\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{titerAddress}}/user",
+					"host": [
+						"{{titerAddress}}"
+					],
+					"path": [
+						"user"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/user/photo",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "userId",
+							"value": "25",
+							"type": "text"
+						},
+						{
+							"key": "photo",
+							"type": "file",
+							"src": "/WIN_20230928_15_59_14_Pro.jpg"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{titerAddress}}/user/photo",
+					"host": [
+						"{{titerAddress}}"
+					],
+					"path": [
+						"user",
+						"photo"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/users/liked",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{titerAddress}}/users/liked/5",
+					"host": [
+						"{{titerAddress}}"
+					],
+					"path": [
+						"users",
+						"liked",
+						"5"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/users/dislikes",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{titerAddress}}/users/dislikes/4",
+					"host": [
+						"{{titerAddress}}"
+					],
+					"path": [
+						"users",
+						"dislikes",
+						"4"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/user/likes",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{titerAddress}}/user/likes/21",
+					"host": [
+						"{{titerAddress}}"
+					],
+					"path": [
+						"user",
+						"likes",
+						"21"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

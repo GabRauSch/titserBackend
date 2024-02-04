@@ -1,0 +1,102 @@
+{
+	"info": {
+		"_postman_id": "b0e5f9e3-8224-47ba-9467-d1f2a847c8ff",
+		"name": "Messages",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "19465844"
+	},
+	"item": [
+		{
+			"name": "/message/send",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"userIdFrom\": 1,\r\n    \"userIdTo\": 3,\r\n    \"messageContent\": \"Hey\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{titerAddress}}/message/send",
+					"host": [
+						"{{titerAddress}}"
+					],
+					"path": [
+						"message",
+						"send"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/messages/:userIdFrom/:userIdTo",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{titerAddress}}/messages/1/2",
+					"host": [
+						"{{titerAddress}}"
+					],
+					"path": [
+						"messages",
+						"1",
+						"2"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/messages/read",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"userIdFrom\": 1,\r\n    \"userIdTo\": 2\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{titerAddress}}/messages/read",
+					"host": [
+						"{{titerAddress}}"
+					],
+					"path": [
+						"messages",
+						"read"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/messages/chats/:userId",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{titerAddress}}/messages/chats/1",
+					"host": [
+						"{{titerAddress}}"
+					],
+					"path": [
+						"messages",
+						"chats",
+						"1"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
