@@ -20,7 +20,9 @@ const sequelize = new Sequelize(
     databaseConfig.databasePass,
     {
         dialect: 'mysql',
-        port: databaseConfig.databasePort
+        port: databaseConfig.databasePort,
+        logging: true,
+        logQueryParameters: true
     }
 );
 

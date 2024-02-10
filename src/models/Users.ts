@@ -19,36 +19,157 @@ export type FullRetrieveData = {
     idsRetrieved: number[]
 };
 
-interface UsersAttributes {
+export interface UsersAttributes {
     id: number,
+    email: string,
+    confirmationCode: string,
+    passwordHash: string,
     customName: string,
     description: string,
     currentLocation: Location;
     identityServiceId: number;
     birthday: Date;
     photo: string;
-    gender: string
+    gender: string;
 }
 
 interface UsersCreateAttributes extends Optional<UsersAttributes, 'id'>{};
+interface UserCreationAttributes {email: string, passwordHash: string, confirmationCode: string}
 
-class UsersModel extends Model<UsersAttributes, UsersCreateAttributes> implements UsersAttributes{
+class UsersModel extends Model<UsersAttributes, UserCreationAttributes> implements UsersAttributes{
     public id!: number;
+    public email!: string;
+    public confirmationCode!: string
+    public passwordHash!: string
     public customName!: string;
     public description!: string;
     public currentLocation!: Location;
     public identityServiceId!: number;
     public birthday!: Date;
     public photo!: string;
-    public gender!: string
+    public gender!: string;
 
-    static async UpdateUserInfo(userId: number, data: UserUpdateData): Promise<boolean | null>{
+    static async UserByCustomName(customName: string): Promise<UsersModel | null>{
+        try {
+            const user = UsersModel.findOne({
+                where: {
+                    customName
+                }
+            })
+            return user
+        } catch (e) {
+            console.error(e);
+            return null
+        }
+    }
+    static async GetUserInfo(userId: number): Promise<any | null>{
+        try {
+            const rawQuery = `
+                SELECT id, customName, TIMESTAMPDIFF(YEAR, birthday, CURDATE()) AS age,
+                    description, gender, photo, targetAgeRange, targetGender, targetDistanceRange 
+                FROM users
+                WHERE id = :userId`;
+
+            const user = await sequelize.query(rawQuery, {
+                replacements: {userId},
+                type: QueryTypes.SELECT
+            })
+
+            return user[0]
+
+        } catch (e) {
+            console.error(e);
+            return null
+        }
+    }
+    static async UsersByConfirmationCode(userToken: string): Promise<UsersModel | null>{
+        try {
+            const user = await UsersModel.findOne({
+                where: {
+                    confirmationCode: userToken
+                }
+            });
+            return user
+        } catch (e) {
+            console.error(e);
+            return null
+        }
+    }
+    static async ConfirmCreation(userUpdate: UsersModel, customName: string): Promise<any | null>{
+        try {
+            
+            const updatedUser = await userUpdate.update({
+                confirmationCode: '',
+                customName: customName
+            });
+            
+            const data = {
+                id: updatedUser.id,
+                customName: updatedUser.customName,
+                description: updatedUser.description,
+                photo: updatedUser.photo,
+                age: null,
+                targetAgeRange: null,
+                targetGender: null,
+                targetDistanceRange: null,
+                token: null
+            }
+
+            return data
+        } catch (e) {
+            console.error(e);
+            return null
+        }
+    }
+
+    static async UserByEmail(email: string): Promise<UsersModel | null>{
+        try {
+            const user = UsersModel.findOne({
+                where: {
+                    email
+                }
+            })
+            return user
+        } catch (e) {
+            console.error(e);
+            return null
+        }
+    }
+    static async CreateTemporaryUser(email: string, passwordHash: string, confirmationCode: string): Promise<number | null> {
+        try {
+            const creation = await UsersModel.create({
+                email, 
+                passwordHash,
+                confirmationCode
+            }, {
+                returning: true
+            })
+            return creation.id || null
+        } catch(e) {
+            console.log(e)
+            return null
+        }
+    }
+    static async GetUserByEmailAndPasswordHash(email: string, passwordHash: string): Promise<UsersModel | null>{
+        try {
+            const user = UsersModel.findOne({
+                where: {
+                    email, passwordHash
+                }
+            })
+            return user
+        } catch (e) {
+            console.error(e);
+            return null
+        }
+    }
+    static async UpdateUserInfo(userId: number, data: UserUpdateData): Promise<boolean>{
         try {
             const columns = Object.keys(data);
             const values = Object.values(data);
 
             const setClause = columns.map((col, index) => `${col} = ?`).join(', ');
-
+            console.log(setClause)
             const rawQuery = `
             UPDATE users 
             SET ${setClause} 
@@ -65,7 +186,7 @@ class UsersModel extends Model<UsersAttributes, UsersCreateAttributes> implement
             return userUpdate ? true : false
         } catch (e) {
             console.error(e);
-            return null
+            return false
         }
     }
 
@@ -87,14 +208,24 @@ class UsersModel extends Model<UsersAttributes, UsersCreateAttributes> implement
             return false;
         }
     }
-    static async GetUsersThatLiked(userIdTo: number): Promise<UsersModel[] | null>{
+    static async GetUsersThatLiked(userIdTo: number, alreadyRetrievedIds: number[]): Promise<UsersModel[] | null>{
         try {
+            alreadyRetrievedIds.length == 0 ? alreadyRetrievedIds = [0] : null;
+
             const rawQuery = `
-            SELECT u.id, u.customName, TIMESTAMPDIFF(YEAR, u.birthday, CURDATE()) AS age, u.photo FROM users u 
-                JOIN interactions i ON u.id = i.userIdFrom
-            WHERE i.userIdTo = :userIdTo and i.interactionType = 'like'; `
+            SELECT 
+                u.customName,
+                u.id, TIMESTAMPDIFF(YEAR, u.birthday, CURDATE()) AS age,
+                u.photo 
+            FROM users u 
+                JOIN interactions i ON u.id = i.userIdFrom 
+                    WHERE i.userIdTo = :userIdTo
+                        AND i.matched = 0
+                        AND i.interactionType = 'like'
+                        AND i.userIdTo NOT IN (:alreadyRetrievedIds);           
+            `
             const users: UsersModel[] = await sequelize.query(rawQuery, {
-                replacements: {userIdTo},
+                replacements: {userIdTo, alreadyRetrievedIds},
                 type: QueryTypes.SELECT
             })
 
@@ -105,48 +236,95 @@ class UsersModel extends Model<UsersAttributes, UsersCreateAttributes> implement
             return null
         }
     }
-
-    static async GetUserLikes(userIdFrom: number): Promise<UsersModel[] | null>{
+    static async findMatches(userId: number): Promise<UsersModel[] | null>{
         try {
             const rawQuery = `
-            SELECT 
-                u.id, 
-                u.customName, 
-                TIMESTAMPDIFF(YEAR, u.birthday, CURDATE()) AS age, 
-                u.photo,
-                i.interactionType AS interactionType,
-                CASE 
-                    WHEN i2.interactionType IS NOT NULL THEN i2.interactionType
-                    ELSE 'none'
-                END AS interactionResponse
-            FROM 
-                users u
-                LEFT JOIN interactions i ON u.id = i.userIdTo AND i.userIdFrom = :userIdFrom
-                LEFT JOIN interactions i2 ON u.id = i2.userIdFrom AND i2.userIdTo = :userIdFrom
-            WHERE 
-                i.interactionType IN ('like')
-            ORDER BY 
-                FIELD(interactionResponse, 'like', 'none', 'dislike');
- `
-            const users: UsersModel[] = await sequelize.query(rawQuery, {
-                replacements: {userIdFrom},
-                type: QueryTypes.SELECT
+            SELECT
+            u.id,
+            i.userIdTo,
+            u.customName,
+            u.photo
+        FROM interactions i 
+            JOIN users u ON i.userIdTo = u.id
+            LEFT JOIN messages m ON (u.id = m.userIdFrom OR u.id = m.userIdTo)
+        WHERE i.matched = TRUE
+            AND i.userIdFrom = :userId
+            AND m.id IS NULL
+        
+        `;
+            const matches: UsersModel[] = await sequelize.query(rawQuery, {
+                type: QueryTypes.SELECT,
+                replacements: {userId}
             })
+            return matches
+
+        } catch (e) {
+            console.error(e);
+            return null
+        }
+    }
+    static async GetUserLikes(userIdFrom: number, alreadyRetrievedIds: number[]): Promise<UsersModel[] | null>{
+        try {
+            alreadyRetrievedIds.length == 0 ? alreadyRetrievedIds = [0] : null
+            const rawQuery = `
+                SELECT 
+                    u.id, 
+                    u.customName, 
+                    TIMESTAMPDIFF(YEAR, u.birthday, CURDATE()) AS age, 
+                    u.photo,
+                    i.interactionType AS interactionType,
+                    CASE 
+                        WHEN i2.interactionType IS NOT NULL THEN i2.interactionType
+                        ELSE 'none'
+                    END AS interactionResponse
+                FROM 
+                    users u
+                    LEFT JOIN interactions i ON u.id = i.userIdTo AND i.userIdFrom = :userIdFrom
+                    LEFT JOIN interactions i2 ON u.id = i2.userIdFrom AND i2.userIdTo = :userIdFrom
+                WHERE 
+                    i.interactionType IN ('like')
+                    AND i.userIdTo NOT IN (:alreadyRetrievedIds)
+                ORDER BY 
+                    FIELD(interactionResponse, 'like', 'none', 'dislike');
+            `;
+
+            const users: UsersModel[] = await sequelize.query(rawQuery, {
+                replacements: { userIdFrom, alreadyRetrievedIds },
+                type: QueryTypes.SELECT
+            });
             return users
         } catch (e) {
             console.error(e);
             return null
         }
     }
-    static async GetUsersThatYouDisliked(userIdFrom: number): Promise<UsersModel[] | null>{
+    static async GetUsersThatYouDisliked(userIdFrom: number, alreadyRetrievedIds: number[]): Promise<UsersModel[] | null>{
         try {
+            alreadyRetrievedIds.length == 0 ? alreadyRetrievedIds = [0] : null
             const rawQuery = `
-            SELECT u.id, u.customName, TIMESTAMPDIFF(YEAR, u.birthday, CURDATE()) AS age, u.photo FROM users u 
-                JOIN interactions i ON u.id = i.userIdTo
-            WHERE i.userIdFrom = :userIdFrom and i.interactionType = 'dislike'; `
+            SELECT 
+                u.id, 
+                u.customName, 
+                TIMESTAMPDIFF(YEAR, u.birthday, CURDATE()) AS age, 
+                u.photo,
+                CASE 
+                    WHEN i2.interactionType IS NOT NULL THEN i2.interactionType
+                    ELSE 'none'
+                END AS interactionResponse
+            FROM 
+                users u 
+            LEFT JOIN 
+                interactions i ON u.id = i.userIdTo
+            LEFT JOIN 
+                interactions i2 ON u.id = i2.userIdFrom AND i2.userIdTo = :userIdFrom
+            WHERE 
+                i.userIdFrom = :userIdFrom 
+                AND i.interactionType = 'dislike'
+                AND (i2.interactionType IN ('like', 'none') OR i2.interactionType IS NULL)
+                AND i.userIdTo NOT IN (:alreadyRetrievedIds);`
 
             const users: UsersModel[] = await sequelize.query(rawQuery, {
-                replacements: {userIdFrom},
+                replacements: {userIdFrom, alreadyRetrievedIds},
                 type: QueryTypes.SELECT
             })
             return users
@@ -195,7 +373,6 @@ class UsersModel extends Model<UsersAttributes, UsersCreateAttributes> implement
             return null;
         }
     }
-
     static async SetUserCurrentLocation(userId: number, {latitude, longitude}: Location): Promise<Boolean> {
         try {
             const encodedLongitude = longitude;
@@ -213,7 +390,6 @@ class UsersModel extends Model<UsersAttributes, UsersCreateAttributes> implement
             return false;
         }
     }
-
     static async GetUserByLocationRange({latitude, longitude}: Location, rangeInMeters: number): Promise<UsersModel[] | null>{
         try {
             const encodedLongitude = longitude;
@@ -238,7 +414,6 @@ class UsersModel extends Model<UsersAttributes, UsersCreateAttributes> implement
             return null;
         }
     }
-
     static async GetUserByAgeRange(minAge: number, maxAge: number): Promise<UsersModel[] | null> {
         try {
             const maxBirthdate = subYears(new Date(), minAge);
@@ -259,7 +434,6 @@ class UsersModel extends Model<UsersAttributes, UsersCreateAttributes> implement
             return null;
         }
     }
-
     static async setUserImage(userId: number, photo: string): Promise<Boolean>{
         try {
             const update = await UsersModel.update({
@@ -277,7 +451,6 @@ class UsersModel extends Model<UsersAttributes, UsersCreateAttributes> implement
             return false
         }
     }
-
     static async setUserName(userId: number, customName: string): Promise<Boolean>{
         try {
             const update = await UsersModel.update({
@@ -304,32 +477,39 @@ UsersModel.init({
         primaryKey: true,
         autoIncrement: true
     },
+    email: {
+        type: DataTypes.STRING,
+        unique: true,
+        allowNull: false
+    },
+    confirmationCode: {
+        type: DataTypes.STRING,
+    },
+    passwordHash: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
     customName: {
         type: DataTypes.STRING,
-        allowNull: false,
+        unique: true
     },
     description: {
         type: DataTypes.STRING,
-        allowNull: false
     },
     currentLocation: {
         type: DataTypes.GEOMETRY('POINT'),
     },
     identityServiceId:{
         type: DataTypes.INTEGER,
-        allowNull: false
     },
     birthday: {
         type: DataTypes.DATE,
-        allowNull: false
     },
     photo: {
         type: DataTypes.STRING,
-        allowNull: false
     },
     gender: {
         type: DataTypes.STRING,
-        allowNull: false
     }
 }, {
     sequelize, 

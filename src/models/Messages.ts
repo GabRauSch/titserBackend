@@ -9,7 +9,7 @@ export interface MessagesAttributes {
     userIdFrom: number,
     userIdTo: number,
     messageContent: string,
-    messageDate: Date,
+    messageDate: number,
     seen: boolean
 }
 interface MessagesCreateAttributes extends Optional<MessagesAttributes, 'id'>{};
@@ -19,7 +19,7 @@ class MessagesModel extends Model<MessagesAttributes, MessagesCreateAttributes> 
     public userIdFrom!: number;
     public userIdTo!: number;
     public messageContent!: string;
-    public messageDate!: Date;
+    public messageDate!: number;
     public seen!: boolean
 
     static async ReadMessages(userIdFrom: number, userIdTo: number): Promise<boolean>{
@@ -50,7 +50,8 @@ class MessagesModel extends Model<MessagesAttributes, MessagesCreateAttributes> 
                 return false
             }
 
-            const timestamp = new Date();
+            const timestamp = Date.now();
+            console.log('akdfsjasdklfjlasdkjdsfklskfjaskldjfklçs', timestamp)
             const createLikeMessage = await MessagesModel.create({
                 messageContent: content, 
                 userIdFrom,
@@ -66,9 +67,15 @@ class MessagesModel extends Model<MessagesAttributes, MessagesCreateAttributes> 
         }
     }
 
-    static async ListMessagesFromUser(userIdFrom: number, userIdTo: number): Promise<MessagesModel[] | null>{
+    static async ListMessagesFromUser(userIdFrom: number, userIdTo: number, alreadyRetrievedMessagesIds: number[]): Promise<MessagesModel[] | null>{
         try {
+            alreadyRetrievedMessagesIds.length == 0 ? alreadyRetrievedMessagesIds = [0] : null  
             const rawQuery = `SELECT 
+                id,
+                seen, 
+                messageDate,
+                userIdFrom,
+                userIdTo,
                 messageContent,
                 CASE 
                     WHEN userIdFrom = :userIdFrom THEN 'sent' 
@@ -77,16 +84,18 @@ class MessagesModel extends Model<MessagesAttributes, MessagesCreateAttributes> 
             FROM 
                 messages
             WHERE 
-                (userIdFrom = :userIdFrom AND userIdTo = :userIdTo)
-                OR
-                (userIdFrom = :userIdTo AND userIdTo = :userIdFrom)
+                (
+                    (userIdFrom = :userIdFrom AND userIdTo = :userIdTo)
+                    OR (userIdFrom = :userIdTo AND userIdTo = :userIdFrom)
+                )
+                AND id not in (:alreadyRetrievedMessagesIds)
             ORDER BY 
                 "messageDate" ASC
             LIMIT 1000    
             ;`
 
             const messages = await sequelize.query(rawQuery,{
-                replacements: {userIdFrom, userIdTo},
+                replacements: {userIdFrom, userIdTo, alreadyRetrievedMessagesIds},
                 type: QueryTypes.SELECT
             })
 
@@ -102,21 +111,33 @@ class MessagesModel extends Model<MessagesAttributes, MessagesCreateAttributes> 
         try {
             const rawQuery = `
             SELECT
-                messageContent,
-                userIdFrom,
-                userIdTo,
-                messageDate
-            FROM (
+                m.id,
+                u.customName,
+                u.id as otherUserId,
+                u.photo,
+                m.seen,
+                m.messageContent,
+                m.userIdFrom,
+                m.userIdTo,
+                CASE 
+                    WHEN m.userIdFrom = :userId THEN 'sent' 
+                    ELSE 'received' 
+                END AS direction,
+                m.messageDate
+            FROM messages m
+            JOIN users u ON (CASE WHEN m.userIdFrom = :userId THEN m.userIdTo ELSE m.userIdFrom END = u.id)
+            JOIN (
                 SELECT
-                    messageContent,
-                    userIdFrom,
-                    userIdTo,
-                    messageDate,
-                    ROW_NUMBER() OVER (PARTITION BY LEAST(userIdFrom, userIdTo), GREATEST(userIdFrom, userIdTo) ORDER BY messageDate DESC) AS row_num
-                FROM Messages
+                    MAX(id) AS last_message_id
+                FROM messages
                 WHERE userIdFrom = :userId OR userIdTo = :userId
-            ) AS ranked_messages
-            WHERE row_num = 1;`
+                GROUP BY 
+                    CASE 
+                        WHEN userIdFrom = :userId THEN userIdTo 
+                        ELSE userIdFrom 
+                    END
+            ) lm ON m.id = lm.last_message_id
+            ORDER BY m.messageDate DESC;`
 
             const chats = await sequelize.query(rawQuery, {
                 replacements: {userId},
@@ -151,7 +172,7 @@ MessagesModel.init({
         allowNull: false,
     },
     messageDate: {
-        type: DataTypes.DATE,
+        type: DataTypes.BIGINT,
         allowNull: false
     },
     seen: {

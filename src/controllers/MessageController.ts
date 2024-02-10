@@ -18,6 +18,7 @@ export const readMessages = async (req: Request, res: Response)=>{
 export const sendMessage = async (req: Request, res: Response)=>{
     const {userIdFrom, userIdTo, messageContent} = req.body;
 
+    console.log(userIdFrom, userIdTo, messageContent)
     const usersExist = await Users.UsersExist([userIdFrom, userIdTo]);
     if(!usersExist){return PatternResponses.Error.noRegister(res)}
 
@@ -29,12 +30,12 @@ export const sendMessage = async (req: Request, res: Response)=>{
 }
 
 export const retrieveMessages = async (req: Request, res: Response)=>{
-    const {userIdFrom, userIdTo} = req.params;
+    const {userIdFrom, userIdTo, alreadyRetrievedMessagesIds} = req.body;
 
-    const usersExist = await Users.UsersExist([parseInt(userIdFrom), parseInt(userIdTo)])
+    const usersExist = await Users.UsersExist([userIdFrom, userIdTo])
     if(!usersExist){return PatternResponses.Error.noRegister(res)}
 
-    const messages = await MessagesModel.ListMessagesFromUser(parseInt(userIdFrom), parseInt(userIdTo))
+    const messages = await MessagesModel.ListMessagesFromUser(userIdFrom, userIdTo, alreadyRetrievedMessagesIds)
     return res.json(messages)
 }
 

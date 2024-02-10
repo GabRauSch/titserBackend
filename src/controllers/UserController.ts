@@ -1,6 +1,6 @@
 import {Request, Response} from 'express';
 import Interactions from '../models/Interactions'
-import Users, { FullRetrieveData } from '../models/Users';
+import Users, { FullRetrieveData, UsersAttributes } from '../models/Users';
 import PatternResponses from '../helpers/PatternResponses'
 import { UserUpdateData } from '../types/UserData';
 import fs from 'fs';
@@ -8,6 +8,9 @@ import path from 'path'
 import {v4 as uuidv4} from 'uuid';
 import Jimp from 'jimp';
 import { FullRetrieveSchema } from '../helpers/schemas';
+import UsersModel from '../models/Users';
+import { decodeToken, generateHash } from '../config/passport';
+import { Gender, isGender } from '../types/Genders';
 
 export const setLocationByLatitudeAndLongitude = async (req: Request, res: Response)=>{
     const {userId, location} = req.body;
@@ -23,24 +26,24 @@ export const setLocationByLatitudeAndLongitude = async (req: Request, res: Respo
     return PatternResponses.Success.updated(res)
 }
 export const getUsersThatLikedYou = async (req: Request, res: Response)=>{
-  const {userId} = req.params;
+  const {userIdTo, alreadyRetrievedIds} = req.body;
 
-  const users = await Users.GetUsersThatLiked(parseInt(userId))
+  const users = await Users.GetUsersThatLiked(userIdTo, alreadyRetrievedIds)
 
   return res.json(users)
 }
 export const getUserLikes = async (req: Request, res: Response)=>{
-  const {userId} = req.params;
+  const {userIdFrom, alreadyRetrievedIds} = req.body;
 
-  const users = await Users.GetUserLikes(parseInt(userId));
+  const users = await Users.GetUserLikes(userIdFrom, alreadyRetrievedIds);
 
   return res.json(users)
 }
 
 export const getUsersThatYouDisliked = async (req: Request, res: Response)=>{
-  const {userId} = req.params;
+  const {userIdFrom, alreadyRetrievedIds} = req.body;
 
-  const users = await Users.GetUsersThatYouDisliked(parseInt(userId));
+  const users = await Users.GetUsersThatYouDisliked(userIdFrom, alreadyRetrievedIds);
 
   return res.json(users)
 }
@@ -77,12 +80,26 @@ export const getUserLIst = async (req: Request, res: Response)=>{
     
     return res.json(users)
 }
+export const retrieveUserInfo = async (req: Request, res: Response)=>{
+  const {userId} = req.params
 
+  if(!userId){
+    return PatternResponses.Error.missingAttributes(res, 'userId')
+  }
+
+  const user = await UsersModel.GetUserInfo(parseInt(userId))
+  if(!user){
+    return PatternResponses.Error.noRegister(res)
+  }
+  return res.json(user)
+}
 export const setUserImage = async (req: Request, res: Response) => {
-  try {
     const { userId } = req.body;
     const file = req.file;
-  
+    
+    if(file == undefined || userId == undefined){
+      return PatternResponses.Error.missingAttributes(res, 'userId, file')
+    }
     const user = await Users.findByPk(userId);
     if(!user) return PatternResponses.Error.noRegister(res)
 
@@ -91,7 +108,7 @@ export const setUserImage = async (req: Request, res: Response) => {
     const fileName = `${uuidv4()}.png`;
     const outputPath = path.join(__dirname, '../../public/images', fileName);
   
-    const maxWidth = 230; 
+    const maxWidth = 240; 
     const maxHeight = 300;
   
     const image = await Jimp.read(file.path);
@@ -115,9 +132,7 @@ export const setUserImage = async (req: Request, res: Response) => {
       fs.unlink(oldPath, res=>console.log(res))
     }
     return PatternResponses.Success.imageUploaded(res)
-  } catch (error) {
-    return PatternResponses.Error.internalServerError(res)
-  }
+
 };
 
 export const setUserName = async (req: Request, res: Response)=>{
@@ -134,16 +149,48 @@ export const setUserName = async (req: Request, res: Response)=>{
 }
 
 export const updateUserInfo = async (req: Request, res: Response)=>{
-    const {userId, customName, description, photo} = req.body;
+    const {userId, customName, description, birthday, gender, targetAgeRange, targetDistanceRange, targetGender} = req.body;
+    console.log('updating userInfo', userId)
 
     const userExist = await Users.findByPk(userId);
     if(!userExist){return PatternResponses.Error.noRegister(res)}
 
-    const data: UserUpdateData = {};
-    customName ? data.customName = customName : null;
-    description ? data.description = description : null;
-    photo ? data.photo = photo : null
+    console.log(birthday)
 
+    const data: UserUpdateData = {};
+    if (customName) data.customName = customName.substring(0, 12)
+    if(description) data.description = description.substring(0, 55)
+    if(birthday) {
+      const parts = birthday.split('/');
+      data.birthday = new Date(parts[2], parts[0], parts[1])
+    } 
+    if(gender && isGender(gender))  data.gender = gender
+    if(targetDistanceRange && parseInt(targetDistanceRange)) data.targetDistanceRange = parseInt(targetDistanceRange)
+    if(targetGender && isGender(targetGender))  data.targetGender = targetGender
+    if(targetAgeRange) {
+      const targetAgeRangeArray = targetAgeRange.split(`-`);
+      data.targetAgeRange = `[${targetAgeRangeArray.join()}]`
+    } 
+
+    console.log(data)
     const updateUser = await Users.UpdateUserInfo(userId, data);
+    if(!updateUser){
+      return PatternResponses.Error.notUpdated(res)
+    }
+
     return PatternResponses.Success.updated(res, undefined, data)
+}
+
+
+export const findUsersThatMatched = async (req: Request, res: Response)=>{
+  const {userId} = req.params;
+
+  const userExist = await Users.findByPk(parseInt(userId));
+  if(!userExist){
+      return PatternResponses.Error.noRegister(res)
+  }
+
+  const matches = await Users.findMatches(parseInt(userId));
+
+  return res.json(matches)
 }

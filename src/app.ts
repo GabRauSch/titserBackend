@@ -26,8 +26,9 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next)=>{
     res.status(400);
 
     if(err instanceof MulterError){
-        res.json({error: err.code})
+        return res.json({error: err.code})
     }
+    return res.json({err})
 }
 app.use(errorHandler)
 
