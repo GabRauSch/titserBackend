@@ -28,8 +28,7 @@ export const likeUser = async (req: Request, res: Response)=>{
 export const dislikeUser = async (req: Request, res: Response)=>{
     const {userIdFrom, userIdTo} = req.body;
 
-    console.log('dilike gostoso')
-    console.log('teste', userIdFrom, userIdTo)
+
     const usersExist = await Users.UsersExist([userIdFrom, userIdTo]);
     if(!usersExist){return PatternResponses.Error.noRegister(res);}
 
