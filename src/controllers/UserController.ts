@@ -14,7 +14,6 @@ import { Gender, isGender } from '../types/Genders';
 
 export const setLocationByLatitudeAndLongitude = async (req: Request, res: Response)=>{
     const {userId, location} = req.body;
-    console.log(userId, location)
 
     const user = await Users.findByPk(userId);
 
@@ -150,7 +149,6 @@ export const setUserName = async (req: Request, res: Response)=>{
 
 export const updateUserInfo = async (req: Request, res: Response)=>{
     const {userId, customName, description, birthday, gender, targetAgeRange, targetDistanceRange, targetGender} = req.body;
-    console.log('updating userInfo', userId)
 
     const userExist = await Users.findByPk(userId);
     if(!userExist){return PatternResponses.Error.noRegister(res)}
