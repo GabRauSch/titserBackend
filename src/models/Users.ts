@@ -215,6 +215,7 @@ class UsersModel extends Model<UsersAttributes, UserCreationAttributes> implemen
             const rawQuery = `
             SELECT 
                 u.customName,
+                u.description,
                 u.id, TIMESTAMPDIFF(YEAR, u.birthday, CURDATE()) AS age,
                 u.photo 
             FROM users u 
@@ -246,8 +247,8 @@ class UsersModel extends Model<UsersAttributes, UserCreationAttributes> implemen
             u.photo
         FROM interactions i 
             JOIN users u ON i.userIdTo = u.id
-            LEFT JOIN messages m ON (u.id = m.userIdFrom OR u.id = m.userIdTo)
-        WHERE i.matched = TRUE
+            LEFT JOIN messages m ON ((u.id = m.userIdFrom AND :userId = m.userIdTO) OR (u.id = m.userIdTo AND :userId = m.userIdFrom))
+        WHERE i.matched = 1
             AND i.userIdFrom = :userId
             AND m.id IS NULL
         
